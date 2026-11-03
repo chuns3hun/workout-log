@@ -161,4 +161,6 @@
 ## 13. 링크
 
 - 저장소: https://github.com/chuns3hun/workout-log
-- 커밋: (제출 커밋 링크)
+- 커밋
+  - 주제 정리와 화면 스케치: https://github.com/chuns3hun/workout-log/commit/3424b49
+  - 후보 비교와 유사 앱 조사: https://github.com/chuns3hun/workout-log/commit/7e1724f
