@@ -149,7 +149,7 @@
 |---|---|
 | 저장소 | `workout-log` (개인 저장소). README만 있음 |
 | 현재 코드 | 구현 전 |
-| 개발환경 | 수업 전에 `flutter doctor`로 확인 예정 |
+| 개발환경 | `flutter doctor` 확인 완료, 문제 없음 (Flutter 3.47.4 stable, Windows 11, Android SDK 36, Chrome) |
 | 실행 방법 | 프로젝트 생성 후 `flutter run -d chrome` |
 | README | 7주차 기록 앱 내용이라 이번 주제에 맞게 수정 필요 |
 
