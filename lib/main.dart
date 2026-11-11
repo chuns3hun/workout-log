@@ -1,121 +1,255 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() => runApp(const WorkoutLogApp());
+
+class Exercise {
+  const Exercise(this.name, this.part);
+  final String name;
+  final String part;
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SetRecord {
+  SetRecord({
+    required this.exercise,
+    required this.weight,
+    required this.reps,
+    required this.date,
+  });
+  final Exercise exercise;
+  final double weight;
+  final int reps;
+  final DateTime date;
+}
 
-  // This widget is the root of your application.
+// 10주차는 목표와 종목을 코드에 넣어 둔 예시 데이터로 시작한다.
+// 목표 설정, 종목 추가는 11주차, 기기 저장은 12주차에 붙인다.
+const List<String> parts = ['가슴', '등', '하체', '어깨', '팔'];
+
+const Map<String, int> weeklyGoals = {
+  '가슴': 12,
+  '등': 12,
+  '하체': 9,
+  '어깨': 9,
+  '팔': 6,
+};
+
+const List<Exercise> exercises = [
+  Exercise('벤치프레스', '가슴'),
+  Exercise('덤벨 프레스', '가슴'),
+  Exercise('랫풀다운', '등'),
+  Exercise('바벨 로우', '등'),
+  Exercise('스쿼트', '하체'),
+  Exercise('레그 프레스', '하체'),
+  Exercise('숄더 프레스', '어깨'),
+  Exercise('바벨 컬', '팔'),
+];
+
+// 예시 기록: 가슴 8세트(AC1 확인용), 하체 10세트(AC6 확인용)
+List<SetRecord> sampleRecords() {
+  final now = DateTime.now();
+  return [
+    for (var i = 0; i < 8; i++)
+      SetRecord(exercise: exercises[0], weight: 60, reps: 10, date: now),
+    for (var i = 0; i < 10; i++)
+      SetRecord(exercise: exercises[4], weight: 80, reps: 8, date: now),
+  ];
+}
+
+// 이번 주 월요일 0시. DateTime.weekday는 월요일이 1이다.
+DateTime startOfWeek(DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  return today.subtract(Duration(days: now.weekday - 1));
+}
+
+class WorkoutLogApp extends StatelessWidget {
+  const WorkoutLogApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: WeeklyGoalScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class WeeklyGoalScreen extends StatefulWidget {
+  const WeeklyGoalScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<WeeklyGoalScreen> createState() => _WeeklyGoalScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
+  final List<SetRecord> _records = sampleRecords();
+  final _weightController = TextEditingController();
+  final _repsController = TextEditingController();
 
-  void _incrementCounter() {
+  Exercise? _selected;
+  String? _exerciseError;
+  String? _weightError;
+  String? _repsError;
+
+  // 한 세트 수, 남은 세트 수는 저장하지 않고 기록에서 계산한다.
+  int doneSets(String part) {
+    final start = startOfWeek(DateTime.now());
+    return _records
+        .where((r) => r.exercise.part == part && !r.date.isBefore(start))
+        .length;
+  }
+
+  int remainingSets(String part) {
+    final left = weeklyGoals[part]! - doneSets(part);
+    return left < 0 ? 0 : left;
+  }
+
+  void _saveSet() {
+    final weight = double.tryParse(_weightController.text.trim());
+    final reps = int.tryParse(_repsController.text.trim());
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _exerciseError = _selected == null ? '종목을 골라 주세요' : null;
+      _weightError = (weight == null || weight < 0 || weight > 500)
+          ? '무게를 올바르게 입력하세요'
+          : null;
+      _repsError = (reps == null || reps < 1 || reps > 100)
+          ? '횟수를 올바르게 입력하세요'
+          : null;
+
+      if (_exerciseError != null || _weightError != null || _repsError != null) {
+        return;
+      }
+
+      _records.add(SetRecord(
+        exercise: _selected!,
+        weight: weight!,
+        reps: reps!,
+        date: DateTime.now(),
+      ));
+      // 다음 세트도 같은 무게로 하는 경우가 많아서 무게는 남겨 둔다.
+      _repsController.clear();
     });
   }
 
   @override
+  void dispose() {
+    _weightController.dispose();
+    _repsController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      appBar: AppBar(title: const Text('이번 주 목표')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const Text(
+              '예시 데이터로 실행 중입니다. 앱을 끄면 기록이 사라집니다.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            for (final part in parts) _buildPartProgress(part),
+            const Divider(height: 32),
+            const Text(
+              '세트 기록',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final e in exercises)
+                  ChoiceChip(
+                    label: Text('${e.name} (${e.part})'),
+                    selected: _selected == e,
+                    onSelected: (_) {
+                      setState(() {
+                        _selected = e;
+                        _exerciseError = null;
+                      });
+                    },
+                  ),
+              ],
+            ),
+            if (_exerciseError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _exerciseError!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _weightController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: '무게 (kg)',
+                      errorText: _weightError,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _repsController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: '횟수',
+                      errorText: _repsError,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _saveSet,
+              child: const Text('기록'),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _buildPartProgress(String part) {
+    final goal = weeklyGoals[part]!;
+    final done = doneSets(part);
+    final left = remainingSets(part);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                part,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              Text(left == 0 ? '목표 달성' : '$left세트 남음'),
+            ],
+          ),
+          const SizedBox(height: 4),
+          LinearProgressIndicator(value: done >= goal ? 1.0 : done / goal),
+          const SizedBox(height: 2),
+          Text(
+            '$done / $goal세트',
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
       ),
     );
   }
