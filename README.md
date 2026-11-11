@@ -21,12 +21,14 @@
 
 - [9주차 주제 정리](week09/topic.md)
 - [9주차 분석 기록](week09/analysis.md)
+- [PRD](docs/PRD.md)
+- [첫 화면 구상과 확인 기록](docs/first-screen.md)
 - 7주차 제안서: [week07_app_proposal](https://github.com/chuns3hun/week07_app_proposal)
 
 ## 진행 상황
 
 - [x] 주제 정리와 유사 앱 조사 (9주차)
-- [ ] 이번 주 화면 + 세트 기록 (10주차)
+- [x] 이번 주 화면 + 세트 기록 (10주차)
 - [ ] 종목 선택, 종목 추가, 목표 설정 화면 (11주차)
 - [ ] 기기 저장 (12주차)
 - [ ] AC 확인과 마무리 (13~14주차)
@@ -34,7 +36,14 @@
 
 ## 실행
 
-아직 구현 전 (10주차부터 `flutter run -d chrome`으로 실행 예정)
+```
+flutter pub get
+flutter analyze
+flutter test
+flutter run -d chrome
+```
+
+지금은 예시 데이터로 실행되고, 새로 입력한 기록은 앱을 끄면 사라진다.
 
 ## 주차별 기록
 
@@ -54,3 +63,26 @@
 
 **다음 주 할 일**
 - 이번 주 화면 + 세트 기록 (AC1, AC2, AC4)
+
+### 10주차
+
+**한 일**
+- 교수님께 주제 확정받음
+- 수업 샘플 PRD 형식에 맞춰 PRD 작성. 근거를 사실·가정·미정·확인할 질문으로 나눔
+- Flutter 프로젝트 생성 (`--project-name workout_log`, web·android)
+- 첫 화면 구현: 부위별 남은 세트 표시, 종목 고르고 무게·횟수 기록, 입력 검증
+- AC1, AC2, AC4, AC6 위젯 테스트 작성
+
+**확인 결과**
+- `flutter analyze` 문제 없음, `flutter test` 4개 통과
+- Chrome에서 직접 실행해 AC1, AC6 확인
+
+**배운 것**
+- 폴더 이름에 `-`가 있으면 Dart 패키지 이름으로 못 써서 `--project-name`을 따로 줘야 한다
+- `flutter create .`는 이미 있는 파일(README 등)은 건드리지 않는다
+- `DateTime.weekday`는 월요일이 1이라서 `weekday - 1`일을 빼면 이번 주 월요일이 된다
+- 위젯 테스트에서 화면 아래쪽 위젯은 `ensureVisible`로 먼저 보이게 해야 탭할 수 있다
+- 9주차 스케치는 화면 3개였는데, 핵심 행동을 먼저 확인하려고 한 화면으로 합쳤다 (PRD 변경 기록에 남김)
+
+**다음 주 할 일**
+- 종목을 고르면 직전 기록 보이기, 종목 추가, 목표 설정 (F3~F5)
