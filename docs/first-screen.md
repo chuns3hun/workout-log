@@ -70,3 +70,11 @@
 
 **11주차 첫 작업**
 - 종목을 고르면 직전 기록이 보이게 하기 (F4)
+
+## 7. 저장소와 커밋
+
+- 저장소: https://github.com/chuns3hun/workout-log
+- PRD 작성: https://github.com/chuns3hun/workout-log/commit/0e17684
+- Flutter 프로젝트 생성: https://github.com/chuns3hun/workout-log/commit/99cdf45
+- 첫 화면 구현: https://github.com/chuns3hun/workout-log/commit/3729dad
+- 확인 기록: https://github.com/chuns3hun/workout-log/commit/8fa8832
