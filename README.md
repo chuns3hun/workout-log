@@ -75,7 +75,7 @@ flutter run -d chrome
 
 **확인 결과**
 - `flutter analyze` 문제 없음, `flutter test` 4개 통과
-- Chrome에서 직접 실행해 AC1, AC6 확인
+- Chrome에서 직접 실행해 AC1, AC2, AC4, AC6 확인
 
 **배운 것**
 - 폴더 이름에 `-`가 있으면 Dart 패키지 이름으로 못 써서 `--project-name`을 따로 줘야 한다
