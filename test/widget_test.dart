@@ -53,6 +53,36 @@ void main() {
     }
   });
 
+  testWidgets('AC7 기록이 있는 종목을 고르면 직전 기록이 보임', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    final chip = find.widgetWithText(ChoiceChip, '벤치프레스 (가슴)');
+    await tester.ensureVisible(chip);
+    await tester.tap(chip);
+    await tester.pump();
+
+    expect(find.text('직전 기록: 60kg × 10회'), findsOneWidget);
+  });
+
+  testWidgets('AC8 기록이 없는 종목은 직전 기록 없음', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    final chip = find.widgetWithText(ChoiceChip, '덤벨 프레스 (가슴)');
+    await tester.ensureVisible(chip);
+    await tester.tap(chip);
+    await tester.pump();
+
+    expect(find.text('직전 기록 없음'), findsOneWidget);
+  });
+
+  testWidgets('AC9 기록을 저장하면 직전 기록이 방금 기록으로 바뀜', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    await recordSet(tester, exercise: '덤벨 프레스 (가슴)', weight: '22.5', reps: '12');
+
+    expect(find.text('직전 기록: 22.5kg × 12회'), findsOneWidget);
+  });
+
   testWidgets('AC6 목표보다 많이 하면 목표 달성, 음수 없음', (tester) async {
     await tester.pumpWidget(const WorkoutLogApp());
 

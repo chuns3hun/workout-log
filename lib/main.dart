@@ -103,6 +103,29 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
     return left < 0 ? 0 : left;
   }
 
+  // 직전 기록도 따로 저장하지 않고, 그 종목의 가장 마지막 기록을 찾는다.
+  // 기록은 시간 순서대로 리스트 뒤에 붙으니 뒤에서부터 찾으면 된다.
+  SetRecord? lastRecordOf(Exercise exercise) {
+    for (final r in _records.reversed) {
+      if (r.exercise == exercise) return r;
+    }
+    return null;
+  }
+
+  // 60.0은 60으로, 22.5는 그대로 보여 준다.
+  String formatWeight(double weight) {
+    return weight == weight.roundToDouble()
+        ? weight.toInt().toString()
+        : weight.toString();
+  }
+
+  String lastRecordText() {
+    if (_selected == null) return '';
+    final last = lastRecordOf(_selected!);
+    if (last == null) return '직전 기록 없음';
+    return '직전 기록: ${formatWeight(last.weight)}kg × ${last.reps}회';
+  }
+
   void _saveSet() {
     final weight = double.tryParse(_weightController.text.trim());
     final reps = int.tryParse(_repsController.text.trim());
@@ -176,6 +199,11 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
                   ),
               ],
             ),
+            if (_selected != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(lastRecordText()),
+              ),
             if (_exerciseError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
