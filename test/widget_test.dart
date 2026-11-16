@@ -190,4 +190,109 @@ void main() {
 
     expect(find.text('30세트'), findsOneWidget);
   });
+
+  testWidgets('F3 새 종목을 추가하면 첫 화면 칩에 나타나고 골라서 세트를 기록할 수 있음',
+      (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    // 종목 추가 화면 열기
+    final addExerciseBtn = find.widgetWithText(TextButton, '종목 추가');
+    await tester.ensureVisible(addExerciseBtn);
+    await tester.tap(addExerciseBtn);
+    await tester.pumpAndSettle();
+
+    expect(find.text('종목 추가'), findsOneWidget);
+
+    // 종목 이름 입력 (앞뒤 공백 포함 테스트)
+    final nameInput = find.byKey(const ValueKey('exercise_name_input'));
+    await tester.ensureVisible(nameInput);
+    await tester.enterText(nameInput, '  인클라인 벤치프레스  ');
+    await tester.pump();
+
+    // 부위는 기본 '가슴' 상태에서 추가 버튼 탭
+    final saveButton = find.widgetWithText(ElevatedButton, '추가');
+    await tester.ensureVisible(saveButton);
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    // 첫 화면으로 돌아오고 공백이 제거된 칩이 나타남
+    expect(find.widgetWithText(AppBar, '종목 추가'), findsNothing);
+    final newChip = find.widgetWithText(ChoiceChip, '인클라인 벤치프레스 (가슴)');
+    expect(newChip, findsOneWidget);
+
+    // 추가한 종목으로 세트 기록
+    await recordSet(tester,
+        exercise: '인클라인 벤치프레스 (가슴)', weight: '50', reps: '10');
+
+    // 가슴 세트가 8 -> 9로 증가, 3세트 남음
+    expect(find.text('9 / 12세트'), findsOneWidget);
+    expect(find.text('3세트 남음'), findsOneWidget);
+    // 직전 기록 표시 확인
+    expect(find.text('직전 기록: 50kg × 10회'), findsOneWidget);
+  });
+
+  testWidgets('F3 이름이 비어 있거나 이미 있는 이름이면 추가되지 않고 안내 표시', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    final addExerciseBtn = find.widgetWithText(TextButton, '종목 추가');
+    await tester.ensureVisible(addExerciseBtn);
+    await tester.tap(addExerciseBtn);
+    await tester.pumpAndSettle();
+
+    final nameInput = find.byKey(const ValueKey('exercise_name_input'));
+    final saveButton = find.widgetWithText(ElevatedButton, '추가');
+
+    // 1) 빈칸(공백) 입력
+    for (final emptyText in ['', '   ']) {
+      await tester.ensureVisible(nameInput);
+      await tester.enterText(nameInput, emptyText);
+      await tester.pump();
+
+      await tester.ensureVisible(saveButton);
+      await tester.tap(saveButton);
+      await tester.pump();
+
+      expect(find.text('종목 이름을 입력하세요'), findsOneWidget);
+      expect(find.text('종목 추가'), findsOneWidget);
+    }
+
+    // 2) 이미 등록된 이름 (공백 포함)
+    for (final duplicateText in ['벤치프레스', '  벤치프레스  ']) {
+      await tester.ensureVisible(nameInput);
+      await tester.enterText(nameInput, duplicateText);
+      await tester.pump();
+
+      await tester.ensureVisible(saveButton);
+      await tester.tap(saveButton);
+      await tester.pump();
+
+      expect(find.text('이미 등록된 종목입니다'), findsOneWidget);
+      expect(find.text('종목 추가'), findsOneWidget);
+    }
+  });
+
+  testWidgets('F3 종목 추가 화면에서 저장하지 않고 뒤로 가기로 나오면 추가되지 않음',
+      (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    final addExerciseBtn = find.widgetWithText(TextButton, '종목 추가');
+    await tester.ensureVisible(addExerciseBtn);
+    await tester.tap(addExerciseBtn);
+    await tester.pumpAndSettle();
+
+    final nameInput = find.byKey(const ValueKey('exercise_name_input'));
+    await tester.ensureVisible(nameInput);
+    await tester.enterText(nameInput, '디클라인 벤치프레스');
+    await tester.pump();
+
+    // 저장하지 않고 BackButton 탭
+    final backButton = find.byType(BackButton);
+    await tester.ensureVisible(backButton);
+    await tester.tap(backButton);
+    await tester.pumpAndSettle();
+
+    // 첫 화면에서 해당 칩이 없음을 확인
+    expect(find.widgetWithText(AppBar, '종목 추가'), findsNothing);
+    expect(find.textContaining('디클라인 벤치프레스'), findsNothing);
+  });
 }

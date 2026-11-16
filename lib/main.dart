@@ -6,6 +6,17 @@ class Exercise {
   const Exercise(this.name, this.part);
   final String name;
   final String part;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Exercise &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          part == other.part;
+
+  @override
+  int get hashCode => Object.hash(name, part);
 }
 
 class SetRecord {
@@ -82,6 +93,7 @@ class WeeklyGoalScreen extends StatefulWidget {
 
 class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
   final List<SetRecord> _records = sampleRecords();
+  final List<Exercise> _exercises = List.of(exercises);
   Map<String, int> _goals = Map.of(weeklyGoals);
   final _weightController = TextEditingController();
   final _repsController = TextEditingController();
@@ -175,6 +187,24 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
     }
   }
 
+  Future<void> _openAddExercise() async {
+    final newExercise = await Navigator.push<Exercise>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddExerciseScreen(
+          existingNames: _exercises.map((e) => e.name).toList(),
+        ),
+      ),
+    );
+    if (newExercise != null) {
+      setState(() {
+        _exercises.add(newExercise);
+        _selected = newExercise;
+        _exerciseError = null;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _weightController.dispose();
@@ -209,16 +239,26 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
             const SizedBox(height: 8),
             for (final part in parts) _buildPartProgress(part),
             const Divider(height: 32),
-            const Text(
-              '세트 기록',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '세트 기록',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                TextButton.icon(
+                  onPressed: _openAddExercise,
+                  icon: const Icon(Icons.add),
+                  label: const Text('종목 추가'),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final e in exercises)
+                for (final e in _exercises)
                   ChoiceChip(
                     label: Text('${e.name} (${e.part})'),
                     selected: _selected == e,
@@ -434,6 +474,94 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
             ElevatedButton(
               onPressed: _saveGoals,
               child: const Text('저장'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AddExerciseScreen extends StatefulWidget {
+  const AddExerciseScreen({super.key, required this.existingNames});
+
+  final List<String> existingNames;
+
+  @override
+  State<AddExerciseScreen> createState() => _AddExerciseScreenState();
+}
+
+class _AddExerciseScreenState extends State<AddExerciseScreen> {
+  final _nameController = TextEditingController();
+  String _selectedPart = parts.first;
+  String? _nameError;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _saveExercise() {
+    final trimmedName = _nameController.text.trim();
+
+    setState(() {
+      if (trimmedName.isEmpty) {
+        _nameError = '종목 이름을 입력하세요';
+        return;
+      }
+      if (widget.existingNames.contains(trimmedName)) {
+        _nameError = '이미 등록된 종목입니다';
+        return;
+      }
+      _nameError = null;
+    });
+
+    if (_nameError == null) {
+      Navigator.pop(context, Exercise(trimmedName, _selectedPart));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('종목 추가'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              key: const ValueKey('exercise_name_input'),
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: '종목 이름',
+                errorText: _nameError,
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              key: const ValueKey('exercise_part_dropdown'),
+              initialValue: _selectedPart,
+              decoration: const InputDecoration(labelText: '부위'),
+              items: [
+                for (final part in parts)
+                  DropdownMenuItem(value: part, child: Text(part)),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedPart = value;
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _saveExercise,
+              child: const Text('추가'),
             ),
           ],
         ),
