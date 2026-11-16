@@ -82,6 +82,7 @@ class WeeklyGoalScreen extends StatefulWidget {
 
 class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
   final List<SetRecord> _records = sampleRecords();
+  Map<String, int> _goals = Map.of(weeklyGoals);
   final _weightController = TextEditingController();
   final _repsController = TextEditingController();
 
@@ -99,7 +100,8 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
   }
 
   int remainingSets(String part) {
-    final left = weeklyGoals[part]! - doneSets(part);
+    final goal = _goals[part] ?? 0;
+    final left = goal - doneSets(part);
     return left < 0 ? 0 : left;
   }
 
@@ -154,6 +156,20 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
     });
   }
 
+  Future<void> _openGoalSettings() async {
+    final updated = await Navigator.push<Map<String, int>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GoalSettingScreen(currentGoals: _goals),
+      ),
+    );
+    if (updated != null) {
+      setState(() {
+        _goals = updated;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _weightController.dispose();
@@ -164,7 +180,16 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('이번 주 목표')),
+      appBar: AppBar(
+        title: const Text('이번 주 목표'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: '목표 설정',
+            onPressed: _openGoalSettings,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -251,7 +276,7 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
   }
 
   Widget _buildPartProgress(String part) {
-    final goal = weeklyGoals[part]!;
+    final goal = _goals[part] ?? 0;
     final done = doneSets(part);
     final left = remainingSets(part);
 
@@ -271,13 +296,118 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          LinearProgressIndicator(value: done >= goal ? 1.0 : done / goal),
+          LinearProgressIndicator(
+            value: goal == 0
+                ? 1.0
+                : (done >= goal ? 1.0 : done / goal),
+          ),
           const SizedBox(height: 2),
           Text(
             '$done / $goal세트',
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class GoalSettingScreen extends StatefulWidget {
+  const GoalSettingScreen({super.key, required this.currentGoals});
+
+  final Map<String, int> currentGoals;
+
+  @override
+  State<GoalSettingScreen> createState() => _GoalSettingScreenState();
+}
+
+class _GoalSettingScreenState extends State<GoalSettingScreen> {
+  late final Map<String, TextEditingController> _controllers;
+  final Map<String, String?> _errors = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = {
+      for (final part in parts)
+        part: TextEditingController(
+          text: (widget.currentGoals[part] ?? 0).toString(),
+        ),
+    };
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _saveGoals() {
+    final newGoals = <String, int>{};
+    final newErrors = <String, String?>{};
+    var hasError = false;
+
+    for (final part in parts) {
+      final text = _controllers[part]!.text.trim();
+      final value = int.tryParse(text);
+      if (value == null || value < 1 || value > 50) {
+        newErrors[part] = '1 이상 50 이하 숫자를 입력하세요';
+        hasError = true;
+      } else {
+        newGoals[part] = value;
+        newErrors[part] = null;
+      }
+    }
+
+    setState(() {
+      _errors
+        ..clear()
+        ..addAll(newErrors);
+    });
+
+    if (!hasError) {
+      Navigator.pop(context, newGoals);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('주간 목표 설정'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '부위별 주간 목표 세트 수를 설정합니다 (1~50세트).',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            for (final part in parts) ...[
+              TextField(
+                key: ValueKey('goal_input_$part'),
+                controller: _controllers[part],
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: '$part 목표 세트 수',
+                  errorText: _errors[part],
+                  suffixText: '세트',
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _saveGoals,
+              child: const Text('저장'),
+            ),
+          ],
+        ),
       ),
     );
   }

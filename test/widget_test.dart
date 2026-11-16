@@ -94,4 +94,89 @@ void main() {
     expect(find.text('목표 달성'), findsOneWidget);
     expect(find.textContaining('-'), findsNothing);
   });
+
+  testWidgets('F5 목표를 변경하면 첫 화면의 남은 세트가 바로 다시 계산됨', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    // 초기 상태: 가슴 8/12세트, 4세트 남음
+    expect(find.text('8 / 12세트'), findsOneWidget);
+    expect(find.text('4세트 남음'), findsOneWidget);
+
+    // 목표 설정 화면 열기
+    await tester.tap(find.byTooltip('목표 설정'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('주간 목표 설정'), findsOneWidget);
+
+    // 가슴 목표를 10으로 변경
+    final chestInput = find.byKey(const ValueKey('goal_input_가슴'));
+    await tester.ensureVisible(chestInput);
+    await tester.enterText(chestInput, '10');
+    await tester.pump();
+
+    // 저장 버튼 누르기
+    final saveButton = find.widgetWithText(ElevatedButton, '저장');
+    await tester.ensureVisible(saveButton);
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    // 첫 화면으로 돌아오고 남은 세트가 즉시 다시 계산됨 (10 - 8 = 2)
+    expect(find.text('주간 목표 설정'), findsNothing);
+    expect(find.text('8 / 10세트'), findsOneWidget);
+    expect(find.text('2세트 남음'), findsOneWidget);
+  });
+
+  testWidgets('F5 잘못된 목표값(1 미만, 50 초과, 빈칸, 문자)은 저장되지 않고 안내 문구 표시',
+      (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    await tester.tap(find.byTooltip('목표 설정'));
+    await tester.pumpAndSettle();
+
+    final chestInput = find.byKey(const ValueKey('goal_input_가슴'));
+    final saveButton = find.widgetWithText(ElevatedButton, '저장');
+
+    for (final invalid in ['0', '51', '', 'abc']) {
+      await tester.ensureVisible(chestInput);
+      await tester.enterText(chestInput, invalid);
+      await tester.pump();
+
+      await tester.ensureVisible(saveButton);
+      await tester.tap(saveButton);
+      await tester.pump();
+
+      // 안내 문구 확인 및 화면이 유지되는지 확인
+      expect(find.text('1 이상 50 이하 숫자를 입력하세요'), findsOneWidget);
+      expect(find.text('주간 목표 설정'), findsOneWidget);
+    }
+  });
+
+  testWidgets('F5 저장하지 않고 뒤로 가기로 나오면 기존 목표 유지', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    // 초기 상태 확인
+    expect(find.text('8 / 12세트'), findsOneWidget);
+    expect(find.text('4세트 남음'), findsOneWidget);
+
+    // 목표 설정 진입 후 가슴 목표를 15로 수정
+    await tester.tap(find.byTooltip('목표 설정'));
+    await tester.pumpAndSettle();
+
+    final chestInput = find.byKey(const ValueKey('goal_input_가슴'));
+    await tester.ensureVisible(chestInput);
+    await tester.enterText(chestInput, '15');
+    await tester.pump();
+
+    // 저장하지 않고 뒤로 가기(BackButton) 탭
+    final backButton = find.byType(BackButton);
+    await tester.ensureVisible(backButton);
+    await tester.tap(backButton);
+    await tester.pumpAndSettle();
+
+    // 첫 화면에서 기존 목표(12)와 남은 세트(4)가 그대로 유지됨
+    expect(find.text('주간 목표 설정'), findsNothing);
+    expect(find.text('8 / 12세트'), findsOneWidget);
+    expect(find.text('4세트 남음'), findsOneWidget);
+    expect(find.text('8 / 15세트'), findsNothing);
+  });
 }
