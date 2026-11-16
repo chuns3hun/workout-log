@@ -18,6 +18,10 @@ Future<void> recordSet(
   await tester.enterText(find.widgetWithText(TextField, '무게 (kg)'), weight);
   await tester.enterText(find.widgetWithText(TextField, '횟수'), reps);
 
+  // 입력칸에 남은 커서 손잡이가 기록 버튼을 가리지 않게 포커스를 뺀다.
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpAndSettle();
+
   final button = find.widgetWithText(ElevatedButton, '기록');
   await tester.ensureVisible(button);
   await tester.tap(button);
