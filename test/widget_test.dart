@@ -179,4 +179,15 @@ void main() {
     expect(find.text('4세트 남음'), findsOneWidget);
     expect(find.text('8 / 15세트'), findsNothing);
   });
+
+  testWidgets('AC10 이번 주 남은 세트 합계가 기록하면 같이 줄어듦', (tester) async {
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    // 가슴 4 + 등 12 + 하체 0(목표 초과) + 어깨 9 + 팔 6
+    expect(find.text('31세트'), findsOneWidget);
+
+    await recordSet(tester, exercise: '덤벨 프레스 (가슴)', weight: '24', reps: '10');
+
+    expect(find.text('30세트'), findsOneWidget);
+  });
 }

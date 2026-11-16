@@ -105,6 +105,11 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
     return left < 0 ? 0 : left;
   }
 
+  // 부위별 남은 세트를 더한 값. 목표를 넘긴 부위는 0으로 세서 다른 부위 남은 세트를 깎지 않는다.
+  int totalRemainingSets() {
+    return parts.fold(0, (sum, part) => sum + remainingSets(part));
+  }
+
   // 직전 기록도 따로 저장하지 않고, 그 종목의 가장 마지막 기록을 찾는다.
   // 기록은 시간 순서대로 리스트 뒤에 붙으니 뒤에서부터 찾으면 된다.
   SetRecord? lastRecordOf(Exercise exercise) {
@@ -200,6 +205,8 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 8),
+            _buildTotalRemaining(),
+            const SizedBox(height: 8),
             for (final part in parts) _buildPartProgress(part),
             const Divider(height: 32),
             const Text(
@@ -271,6 +278,28 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTotalRemaining() {
+    final total = totalRemainingSets();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          const Text('이번 주 남은 세트', style: TextStyle(color: Colors.black54)),
+          const SizedBox(height: 4),
+          Text(
+            total == 0 ? '이번 주 목표 모두 달성' : '$total세트',
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }
