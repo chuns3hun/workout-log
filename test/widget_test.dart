@@ -295,4 +295,19 @@ void main() {
     expect(find.widgetWithText(AppBar, '종목 추가'), findsNothing);
     expect(find.textContaining('디클라인 벤치프레스'), findsNothing);
   });
+
+  // 화면은 DateTime.now() 기준이라 날짜를 바꿀 수 없어서, 주 시작 계산과 비교만 따로 확인한다.
+  test('AC3 지난주 일요일 기록은 이번 주에 들어가지 않음', () {
+    final monday = DateTime(2026, 11, 16, 9);
+    final start = startOfWeek(monday);
+    expect(start, DateTime(2026, 11, 16));
+
+    // doneSets는 !date.isBefore(start)인 기록만 센다.
+    final lastSunday = DateTime(2026, 11, 15, 23, 30);
+    expect(lastSunday.isBefore(start), isTrue);
+    expect(monday.isBefore(start), isFalse);
+
+    // 같은 주 일요일 밤에도 시작은 월요일이다.
+    expect(startOfWeek(DateTime(2026, 11, 22, 23, 59)), DateTime(2026, 11, 16));
+  });
 }
