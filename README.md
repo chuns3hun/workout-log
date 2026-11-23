@@ -24,6 +24,8 @@
 - [PRD (최신)](docs/PRD.md)
 - 10주차 제출본: [PRD](week10/PRD.md), [첫 화면 구상과 확인 기록](week10/first-screen.md) / 제출 시점 전체: [week10 태그](https://github.com/chuns3hun/workout-log/tree/week10)
 - [11주차 확인 기록](week11/check.md)
+- [12주차 개발 기록](week12/check.md)
+- [구현 현황](IMPLEMENTATION.md) · 작업 정책 [GEMINI.md](GEMINI.md) · 스킬 [prd-check](.agents/skills/prd-check/SKILL.md)
 - 7주차 제안서: [week07_app_proposal](https://github.com/chuns3hun/week07_app_proposal)
 
 ## 진행 상황
@@ -31,7 +33,7 @@
 - [x] 주제 정리와 유사 앱 조사 (9주차)
 - [x] 이번 주 화면 + 세트 기록 (10주차)
 - [x] 직전 기록, 종목 추가, 목표 설정 화면, 이번 주 남은 세트 합계 (11주차)
-- [ ] 기기 저장 (12주차)
+- [x] 기기 저장 (12주차, Chrome 확인 · 안드로이드 미확인)
 - [ ] AC 확인과 마무리 (13~14주차)
 - [ ] 발표 (15주차)
 
