@@ -1,11 +1,26 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
-void main() => runApp(const WorkoutLogApp());
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await WorkoutStorage.init();
+  } catch (_) {}
+  runApp(const WorkoutLogApp());
+}
 
 class Exercise {
   const Exercise(this.name, this.part);
   final String name;
   final String part;
+
+  Map<String, dynamic> toJson() => {'name': name, 'part': part};
+
+  factory Exercise.fromJson(Map<String, dynamic> json) {
+    return Exercise(json['name'] as String, json['part'] as String);
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -30,10 +45,26 @@ class SetRecord {
   final double weight;
   final int reps;
   final DateTime date;
+
+  Map<String, dynamic> toJson() => {
+    'exercise': exercise.toJson(),
+    'weight': weight,
+    'reps': reps,
+    'date': date.toIso8601String(),
+  };
+
+  factory SetRecord.fromJson(Map<String, dynamic> json) {
+    return SetRecord(
+      exercise: Exercise.fromJson(json['exercise'] as Map<String, dynamic>),
+      weight: (json['weight'] as num).toDouble(),
+      reps: json['reps'] as int,
+      date: DateTime.parse(json['date'] as String),
+    );
+  }
 }
 
-// 10주차는 목표와 종목을 코드에 넣어 둔 예시 데이터로 시작한다.
-// 목표 설정, 종목 추가는 11주차, 기기 저장은 12주차에 붙인다.
+// 10주차는 목표와 종목을 코드에 넣어 둔 예시 데이터로 시작했다.
+// 목표 설정, 종목 추가는 11주차, 기기 저장은 12주차에 붙였다.
 const List<String> parts = ['가슴', '등', '하체', '어깨', '팔'];
 
 const Map<String, int> weeklyGoals = {
@@ -66,6 +97,85 @@ List<SetRecord> sampleRecords() {
   ];
 }
 
+class WorkoutStorage {
+  static const String exercisesKey = 'workout_exercises';
+  static const String goalsKey = 'workout_goals';
+  static const String recordsKey = 'workout_records';
+
+  static SharedPreferences? _prefs;
+
+  static Future<SharedPreferences> init() async {
+    _prefs = await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+
+  static SharedPreferences? get prefs => _prefs;
+
+  static List<Exercise> loadExercises(SharedPreferences? prefs) {
+    if (prefs == null) return List.of(exercises);
+    try {
+      final jsonStr = prefs.getString(exercisesKey);
+      if (jsonStr == null) return List.of(exercises);
+      final list = jsonDecode(jsonStr) as List<dynamic>;
+      return list
+          .map((item) => Exercise.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return List.of(exercises);
+    }
+  }
+
+  static Future<void> saveExercises(List<Exercise> exerciseList) async {
+    try {
+      final p = _prefs ?? await init();
+      final jsonStr = jsonEncode(exerciseList.map((e) => e.toJson()).toList());
+      await p.setString(exercisesKey, jsonStr);
+    } catch (_) {}
+  }
+
+  static Map<String, int> loadGoals(SharedPreferences? prefs) {
+    if (prefs == null) return Map.of(weeklyGoals);
+    try {
+      final jsonStr = prefs.getString(goalsKey);
+      if (jsonStr == null) return Map.of(weeklyGoals);
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return map.map((k, v) => MapEntry(k, v as int));
+    } catch (_) {
+      return Map.of(weeklyGoals);
+    }
+  }
+
+  static Future<void> saveGoals(Map<String, int> goalMap) async {
+    try {
+      final p = _prefs ?? await init();
+      final jsonStr = jsonEncode(goalMap);
+      await p.setString(goalsKey, jsonStr);
+    } catch (_) {}
+  }
+
+  static List<SetRecord> loadRecords(SharedPreferences? prefs) {
+    if (prefs == null) return [];
+    try {
+      final jsonStr = prefs.getString(recordsKey);
+      if (jsonStr == null) return [];
+      final list = jsonDecode(jsonStr) as List<dynamic>;
+      return list
+          .map((item) => SetRecord.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> saveRecords(List<SetRecord> recordList) async {
+    try {
+      final p = _prefs ?? await init();
+      final jsonStr = jsonEncode(recordList.map((r) => r.toJson()).toList());
+      await p.setString(recordsKey, jsonStr);
+    } catch (_) {}
+  }
+}
+
 // 이번 주 월요일 0시. DateTime.weekday는 월요일이 1이다.
 DateTime startOfWeek(DateTime now) {
   final today = DateTime(now.year, now.month, now.day);
@@ -92,9 +202,9 @@ class WeeklyGoalScreen extends StatefulWidget {
 }
 
 class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
-  final List<SetRecord> _records = sampleRecords();
-  final List<Exercise> _exercises = List.of(exercises);
-  Map<String, int> _goals = Map.of(weeklyGoals);
+  late List<SetRecord> _records;
+  late List<Exercise> _exercises;
+  late Map<String, int> _goals;
   final _weightController = TextEditingController();
   final _repsController = TextEditingController();
 
@@ -102,6 +212,32 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
   String? _exerciseError;
   String? _weightError;
   String? _repsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  void _loadInitialData() {
+    final prefs = WorkoutStorage.prefs;
+    _exercises = WorkoutStorage.loadExercises(prefs);
+    _goals = WorkoutStorage.loadGoals(prefs);
+    _records = WorkoutStorage.loadRecords(prefs);
+
+    if (prefs == null) {
+      WorkoutStorage.init()
+          .then((p) {
+            if (!mounted) return;
+            setState(() {
+              _exercises = WorkoutStorage.loadExercises(p);
+              _goals = WorkoutStorage.loadGoals(p);
+              _records = WorkoutStorage.loadRecords(p);
+            });
+          })
+          .catchError((_) {});
+    }
+  }
 
   // 한 세트 수, 남은 세트 수는 저장하지 않고 기록에서 계산한다.
   int doneSets(String part) {
@@ -158,19 +294,24 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
           ? '횟수를 올바르게 입력하세요'
           : null;
 
-      if (_exerciseError != null || _weightError != null || _repsError != null) {
+      if (_exerciseError != null ||
+          _weightError != null ||
+          _repsError != null) {
         return;
       }
 
-      _records.add(SetRecord(
-        exercise: _selected!,
-        weight: weight!,
-        reps: reps!,
-        date: DateTime.now(),
-      ));
+      _records.add(
+        SetRecord(
+          exercise: _selected!,
+          weight: weight!,
+          reps: reps!,
+          date: DateTime.now(),
+        ),
+      );
       // 다음 세트도 같은 무게로 하는 경우가 많아서 무게는 남겨 둔다.
       _repsController.clear();
     });
+    WorkoutStorage.saveRecords(_records);
   }
 
   Future<void> _openGoalSettings() async {
@@ -184,6 +325,7 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
       setState(() {
         _goals = updated;
       });
+      WorkoutStorage.saveGoals(_goals);
     }
   }
 
@@ -202,6 +344,7 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
         _selected = newExercise;
         _exerciseError = null;
       });
+      WorkoutStorage.saveExercises(_exercises);
     }
   }
 
@@ -230,11 +373,6 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              '예시 데이터로 실행 중입니다. 앱을 끄면 기록이 사라집니다.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
             _buildTotalRemaining(),
             const SizedBox(height: 8),
             for (final part in parts) _buildPartProgress(part),
@@ -290,8 +428,9 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
                 Expanded(
                   child: TextField(
                     controller: _weightController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: InputDecoration(
                       labelText: '무게 (kg)',
                       errorText: _weightError,
@@ -312,10 +451,7 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _saveSet,
-              child: const Text('기록'),
-            ),
+            ElevatedButton(onPressed: _saveSet, child: const Text('기록')),
           ],
         ),
       ),
@@ -358,7 +494,10 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
             children: [
               Text(
                 part,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Spacer(),
               Text(left == 0 ? '목표 달성' : '$left세트 남음'),
@@ -366,9 +505,7 @@ class _WeeklyGoalScreenState extends State<WeeklyGoalScreen> {
           ),
           const SizedBox(height: 4),
           LinearProgressIndicator(
-            value: goal == 0
-                ? 1.0
-                : (done >= goal ? 1.0 : done / goal),
+            value: goal == 0 ? 1.0 : (done >= goal ? 1.0 : done / goal),
           ),
           const SizedBox(height: 2),
           Text(
@@ -444,9 +581,7 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('주간 목표 설정'),
-      ),
+      appBar: AppBar(title: const Text('주간 목표 설정')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -471,10 +606,7 @@ class _GoalSettingScreenState extends State<GoalSettingScreen> {
               const SizedBox(height: 12),
             ],
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _saveGoals,
-              child: const Text('저장'),
-            ),
+            ElevatedButton(onPressed: _saveGoals, child: const Text('저장')),
           ],
         ),
       ),
@@ -525,9 +657,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('종목 추가'),
-      ),
+      appBar: AppBar(title: const Text('종목 추가')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -559,10 +689,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
               },
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _saveExercise,
-              child: const Text('추가'),
-            ),
+            ElevatedButton(onPressed: _saveExercise, child: const Text('추가')),
           ],
         ),
       ),

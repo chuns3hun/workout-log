@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:workout_log/main.dart';
 
@@ -29,6 +32,14 @@ Future<void> recordSet(
 }
 
 void main() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({
+      WorkoutStorage.recordsKey: jsonEncode(
+        sampleRecords().map((r) => r.toJson()).toList(),
+      ),
+    });
+    await WorkoutStorage.init();
+  });
   testWidgets('AC1 가슴 12세트 중 8세트를 했으면 4세트 남음', (tester) async {
     await tester.pumpWidget(const WorkoutLogApp());
 
@@ -36,8 +47,7 @@ void main() {
     expect(find.text('4세트 남음'), findsOneWidget);
   });
 
-  testWidgets('AC2 순서와 상관없이 가슴 종목을 기록하면 남은 세트가 1 줄어듦',
-      (tester) async {
+  testWidgets('AC2 순서와 상관없이 가슴 종목을 기록하면 남은 세트가 1 줄어듦', (tester) async {
     await tester.pumpWidget(const WorkoutLogApp());
 
     await recordSet(tester, exercise: '덤벨 프레스 (가슴)', weight: '24', reps: '10');
@@ -50,7 +60,12 @@ void main() {
     await tester.pumpWidget(const WorkoutLogApp());
 
     for (final reps in ['', '0', 'abc', '101']) {
-      await recordSet(tester, exercise: '덤벨 프레스 (가슴)', weight: '24', reps: reps);
+      await recordSet(
+        tester,
+        exercise: '덤벨 프레스 (가슴)',
+        weight: '24',
+        reps: reps,
+      );
 
       expect(find.text('횟수를 올바르게 입력하세요'), findsOneWidget);
       expect(find.text('4세트 남음'), findsOneWidget);
@@ -82,7 +97,12 @@ void main() {
   testWidgets('AC9 기록을 저장하면 직전 기록이 방금 기록으로 바뀜', (tester) async {
     await tester.pumpWidget(const WorkoutLogApp());
 
-    await recordSet(tester, exercise: '덤벨 프레스 (가슴)', weight: '22.5', reps: '12');
+    await recordSet(
+      tester,
+      exercise: '덤벨 프레스 (가슴)',
+      weight: '22.5',
+      reps: '12',
+    );
 
     expect(find.text('직전 기록: 22.5kg × 12회'), findsOneWidget);
   });
@@ -126,8 +146,9 @@ void main() {
     expect(find.text('2세트 남음'), findsOneWidget);
   });
 
-  testWidgets('F5 잘못된 목표값(1 미만, 50 초과, 빈칸, 문자)은 저장되지 않고 안내 문구 표시',
-      (tester) async {
+  testWidgets('F5 잘못된 목표값(1 미만, 50 초과, 빈칸, 문자)은 저장되지 않고 안내 문구 표시', (
+    tester,
+  ) async {
     await tester.pumpWidget(const WorkoutLogApp());
 
     await tester.tap(find.byTooltip('목표 설정'));
@@ -191,8 +212,7 @@ void main() {
     expect(find.text('30세트'), findsOneWidget);
   });
 
-  testWidgets('F3 새 종목을 추가하면 첫 화면 칩에 나타나고 골라서 세트를 기록할 수 있음',
-      (tester) async {
+  testWidgets('F3 새 종목을 추가하면 첫 화면 칩에 나타나고 골라서 세트를 기록할 수 있음', (tester) async {
     await tester.pumpWidget(const WorkoutLogApp());
 
     // 종목 추가 화면 열기
@@ -221,8 +241,12 @@ void main() {
     expect(newChip, findsOneWidget);
 
     // 추가한 종목으로 세트 기록
-    await recordSet(tester,
-        exercise: '인클라인 벤치프레스 (가슴)', weight: '50', reps: '10');
+    await recordSet(
+      tester,
+      exercise: '인클라인 벤치프레스 (가슴)',
+      weight: '50',
+      reps: '10',
+    );
 
     // 가슴 세트가 8 -> 9로 증가, 3세트 남음
     expect(find.text('9 / 12세트'), findsOneWidget);
@@ -271,8 +295,7 @@ void main() {
     }
   });
 
-  testWidgets('F3 종목 추가 화면에서 저장하지 않고 뒤로 가기로 나오면 추가되지 않음',
-      (tester) async {
+  testWidgets('F3 종목 추가 화면에서 저장하지 않고 뒤로 가기로 나오면 추가되지 않음', (tester) async {
     await tester.pumpWidget(const WorkoutLogApp());
 
     final addExerciseBtn = find.widgetWithText(TextButton, '종목 추가');
@@ -309,5 +332,111 @@ void main() {
 
     // 같은 주 일요일 밤에도 시작은 월요일이다.
     expect(startOfWeek(DateTime(2026, 11, 22, 23, 59)), DateTime(2026, 11, 16));
+  });
+
+  testWidgets('F6 처음 실행 시 기록이 없으면 빈 상태(0세트)로 시작함', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await WorkoutStorage.init();
+
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    expect(find.text('0 / 12세트'), findsNWidgets(2)); // 가슴, 등 각각 0/12
+    expect(find.text('12세트 남음'), findsNWidgets(2)); // 가슴, 등 각각 12세트 남음
+    expect(find.text('48세트'), findsOneWidget); // 12+12+9+9+6 = 48
+  });
+
+  testWidgets('F6 세트 기록 저장 후 앱 재시작 시 세트 기록 및 남은 세트가 유지됨', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await WorkoutStorage.init();
+
+    await tester.pumpWidget(const WorkoutLogApp());
+    expect(find.text('0 / 12세트'), findsNWidgets(2));
+
+    await recordSet(tester, exercise: '벤치프레스 (가슴)', weight: '60', reps: '10');
+    expect(find.text('1 / 12세트'), findsOneWidget);
+    expect(find.text('11세트 남음'), findsOneWidget);
+
+    await tester.pumpWidget(Container());
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    expect(find.text('1 / 12세트'), findsOneWidget);
+    expect(find.text('11세트 남음'), findsOneWidget);
+
+    final chip = find.widgetWithText(ChoiceChip, '벤치프레스 (가슴)');
+    await tester.ensureVisible(chip);
+    await tester.tap(chip);
+    await tester.pump();
+    expect(find.text('직전 기록: 60kg × 10회'), findsOneWidget);
+  });
+
+  testWidgets('F6 목표 변경 후 앱 재시작 시 변경된 목표가 유지됨', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await WorkoutStorage.init();
+
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    await tester.tap(find.byTooltip('목표 설정'));
+    await tester.pumpAndSettle();
+
+    final chestInput = find.byKey(const ValueKey('goal_input_가슴'));
+    await tester.ensureVisible(chestInput);
+    await tester.enterText(chestInput, '15');
+    await tester.pump();
+
+    final saveButton = find.widgetWithText(ElevatedButton, '저장');
+    await tester.ensureVisible(saveButton);
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 / 15세트'), findsOneWidget);
+
+    await tester.pumpWidget(Container());
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    expect(find.text('0 / 15세트'), findsOneWidget);
+    expect(find.text('15세트 남음'), findsOneWidget);
+  });
+
+  testWidgets('F6 종목 추가 후 앱 재시작 시 추가된 종목이 유지됨', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await WorkoutStorage.init();
+
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    final addExerciseBtn = find.widgetWithText(TextButton, '종목 추가');
+    await tester.ensureVisible(addExerciseBtn);
+    await tester.tap(addExerciseBtn);
+    await tester.pumpAndSettle();
+
+    final nameInput = find.byKey(const ValueKey('exercise_name_input'));
+    await tester.ensureVisible(nameInput);
+    await tester.enterText(nameInput, '딥스');
+    await tester.pump();
+
+    final saveButton = find.widgetWithText(ElevatedButton, '추가');
+    await tester.ensureVisible(saveButton);
+    await tester.tap(saveButton);
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ChoiceChip, '딥스 (가슴)'), findsOneWidget);
+
+    await tester.pumpWidget(Container());
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    expect(find.widgetWithText(ChoiceChip, '딥스 (가슴)'), findsOneWidget);
+  });
+
+  testWidgets('F6 저장된 JSON 데이터가 손상되어도 에러 없이 기본값으로 시작함', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      WorkoutStorage.recordsKey: 'invalid-json{',
+      WorkoutStorage.goalsKey: 'invalid-goals{',
+      WorkoutStorage.exercisesKey: 'invalid-exercises{',
+    });
+    await WorkoutStorage.init();
+
+    await tester.pumpWidget(const WorkoutLogApp());
+
+    expect(find.text('0 / 12세트'), findsNWidgets(2));
+    expect(find.text('벤치프레스 (가슴)'), findsOneWidget);
   });
 }
